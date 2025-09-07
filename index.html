@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mental Health - SPIRIT-D Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 <style>
 body {
   font-family: 'Segoe UI', Tahoma, sans-serif;
   margin: 0;
   background: #1a1a1a;
   color: #fff;
+  overflow-y: auto;
   transition: background 0.5s, color 0.5s;
 }
-body.light { background: #f4f6f9; color: #333; }
+body.light {
+  background: #f4f6f9;
+  color: #333;
+}
 header {
   text-align: center;
   padding: 20px;
@@ -59,13 +62,7 @@ body.light .progress-bar { background: #ddd; }
   position: fixed; top:15px; right:20px;
   background:none; border:none; font-size:20px; cursor:pointer; z-index:999;
 }
-canvas#bgParticles {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  z-index: -1;
-  pointer-events: none;
-}
+canvas#bgParticles { position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1; pointer-events:none; }
 </style>
 </head>
 <body>
@@ -146,27 +143,18 @@ function renderDashboard(rows){
         label:'Patients',
         data,
         backgroundColor:labels.map((_,i)=>`hsl(${i*45%360},80%,55%)`),
-        hoverBackgroundColor:labels.map((_,i)=>`hsl(${i*45%360},100%,70%)`),
         borderRadius:10,
       }]
     },
     options:{
       responsive:true,
       maintainAspectRatio:false,
-      scales:{y:{beginAtZero:true}},
+      scales:{ y:{beginAtZero:true} },
       plugins:{
         legend:{display:false},
-        tooltip:{enabled:true},
-        datalabels:{
-          color:'#fff',
-          anchor:'end',
-          align:'end',
-          font:{weight:'bold', size:12},
-          formatter:val=>val
-        }
+        datalabels:{ color:'#fff', anchor:'end', align:'top' }
       }
-    },
-    plugins:[ChartDataLabels]
+    }
   });
 
   // Medicine Consumption
@@ -184,27 +172,25 @@ const themeToggle=document.getElementById('themeToggle');
 themeToggle.addEventListener('click',()=>{
   document.body.classList.toggle('light');
   themeToggle.textContent = document.body.classList.contains('light') ? '🌙' : '☀️';
-  particles.forEach(p=>p.color=randomColor());
 });
 
 // INITIAL FETCH
 fetchData(); setInterval(fetchData,60000);
 
-// PARTICLES WITH MOUSE TRAILS + SPARKLES + FIXED BACKGROUND
-const canvas=document.getElementById('bgParticles');
+// PARTICLES WITH MOUSE TRAILS + SPARKLES
+const canvas=document.createElement('canvas');
+canvas.id='bgParticles';
+document.body.appendChild(canvas);
 const ctxParticles=canvas.getContext('2d');
 let w=canvas.width=window.innerWidth;
 let h=canvas.height=window.innerHeight;
 window.addEventListener('resize',()=>{ w=canvas.width=window.innerWidth; h=canvas.height=window.innerHeight; });
 
-let particles=[],mouseParticles=[],mouse={x:null,y:null,lastX:null,lastY:null},scrollY=0;
-const particleCount=180;
-let hueOffset=0;
+let particles=[],mouseParticles=[],mouse={x:null,y:null},scrollY=0;
+const particleCount=200;
 
-function randomColor(){ 
-  const alpha = document.body.classList.contains('light')?0.2:0.7;
-  return `hsla(${hueOffset},100%,50%,${alpha})`;
-}
+function randomColor(){ return document.body.classList.contains('light')?'rgba(0,255,255,0.3)':'rgba(0,255,255,0.7)'; }
+
 function createParticles(){
   particles=[];
   for(let i=0;i<particleCount;i++){
@@ -217,38 +203,42 @@ function createParticles(){
     });
   }
 }
-function createMouseParticle(x,y,vx,vy){
+
+function createMouseParticle(x,y){
   mouseParticles.push({
-    x,y,r:Math.random()*3+2,alpha:1,
-    dx: vx*0.2 + (Math.random()-0.5)*0.5,
-    dy: vy*0.2 + (Math.random()-0.5)*0.5,
-    color:'hsla(180,100%,50%,1)'
+    x, y,
+    r:Math.random()*4+3,
+    alpha:1,
+    dx:(Math.random()-0.5)*1.5,
+    dy:(Math.random()-0.5)*1.5,
+    color:'rgba(0,255,255,1)'
   });
 }
+
 function drawParticles(){
   ctxParticles.clearRect(0,0,w,h);
-  hueOffset+=0.2;
 
+  // background floating
   particles.forEach(p=>{
-    p.x+=p.dx; p.y+=p.dy;
+    p.x+=p.dx; p.y+=p.dy + scrollY*0.02;
     if(p.x<0||p.x>w)p.dx*=-1;
     if(p.y<0||p.y>h)p.dy*=-1;
     ctxParticles.beginPath();
     ctxParticles.arc(p.x,p.y,p.r,0,Math.PI*2);
-    p.color=randomColor();
     ctxParticles.fillStyle=p.color;
     ctxParticles.shadowColor=p.color;
     ctxParticles.shadowBlur=6;
     ctxParticles.fill();
   });
 
+  // mouse sparkling
   mouseParticles.forEach((p,i)=>{
-    p.x+=p.dx; p.y+=p.dy; p.r*=0.97; p.alpha*=0.96;
+    p.x+=p.dx; p.y+=p.dy; p.r*=0.96; p.alpha*=0.93;
     ctxParticles.beginPath();
     ctxParticles.arc(p.x,p.y,p.r,0,Math.PI*2);
-    ctxParticles.fillStyle=`hsla(180,100%,50%,${p.alpha})`;
-    ctxParticles.shadowColor='hsla(180,100%,50%,0.7)';
-    ctxParticles.shadowBlur=8;
+    ctxParticles.fillStyle=`rgba(0,255,255,${p.alpha})`;
+    ctxParticles.shadowColor='rgba(0,255,255,0.8)';
+    ctxParticles.shadowBlur=10;
     ctxParticles.fill();
     if(p.alpha<0.05) mouseParticles.splice(i,1);
   });
@@ -260,14 +250,11 @@ createParticles();
 drawParticles();
 
 window.addEventListener('mousemove',e=>{
-  if(mouse.lastX!=null && mouse.lastY!=null){
-    const vx = e.clientX - mouse.lastX;
-    const vy = e.clientY - mouse.lastY;
-    for(let i=0;i<5;i++) createMouseParticle(e.clientX+Math.random()*4-2, e.clientY+Math.random()*4-2, vx, vy);
-  }
-  mouse.lastX = e.clientX;
-  mouse.lastY = e.clientY;
+  mouse.x=e.clientX; mouse.y=e.clientY;
+  for(let i=0;i<5;i++) createMouseParticle(mouse.x+Math.random()*8-4, mouse.y+Math.random()*8-4);
 });
+
+window.addEventListener('scroll',()=>{ scrollY=window.scrollY; });
 </script>
 </body>
 </html>
