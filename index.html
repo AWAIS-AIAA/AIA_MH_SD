@@ -5,247 +5,269 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mental Health - SPIRIT-D Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 <style>
 body {
   font-family: 'Segoe UI', Tahoma, sans-serif;
   margin: 0;
-  background: #f4f6f9;
-  color: #333;
+  background: #1a1a1a;
+  color: #fff;
   transition: background 0.5s, color 0.5s;
-  overflow-y: auto;
 }
-body.dark { background: #1a1a1a; color: #fff; }
+body.light { background: #f4f6f9; color: #333; }
 header {
   text-align: center;
   padding: 20px;
-  background: #3949ab;
+  background: #0d47a1;
   color: white;
   font-size: 1.6rem;
   font-weight: bold;
+  transition: background 0.5s;
 }
-body.dark header { background: #0d47a1; }
+body.light header { background: #3949ab; }
 .section { margin: 30px auto; width: 95%; max-width: 1200px; }
 .section h2 {
   font-size: 1.3rem;
   margin-bottom: 15px;
-  border-left: 5px solid #3949ab;
+  border-left: 5px solid #0d47a1;
   padding-left: 10px;
 }
-body.dark .section h2 { border-left-color: #0d47a1; color:#fff; }
+body.light .section h2 { border-left-color: #3949ab; color:#000; }
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 20px;
 }
 .card {
-  background: white;
+  background: #222;
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
   transition: background 0.5s, color 0.5s;
 }
-body.dark .card { background: #222; color:#fff; box-shadow:0 4px 10px rgba(0,0,0,0.4);}
-.card h3 { margin: 0; font-size: 1rem; color: #555; }
-body.dark .card h3 { color:#ccc; }
-.value { font-size: 1.8rem; font-weight: bold; margin: 10px 0; }
-.progress-label { font-size: 0.9rem; margin: 6px 0 4px; display:flex; justify-content:space-between; }
-.progress-bar { background: #e0e0e0; border-radius: 8px; overflow: hidden; height: 18px; }
-body.dark .progress-bar { background: #333; }
-.progress-fill { height: 100%; text-align:center; color:white; font-size:0.75rem; line-height:18px; white-space:nowrap; }
-.positive { background: #e53935; }
-.negative { background: #43a047; }
+body.light .card { background: #fff; color:#333; box-shadow:0 4px 10px rgba(0,0,0,0.1);}
+.card h3 { margin:0; font-size:1rem; color:#ccc; }
+body.light .card h3 { color:#555; }
+.value { font-size:1.8rem; font-weight:bold; margin:10px 0; }
+.progress-bar { background: #333; border-radius: 8px; overflow: hidden; height: 18px; margin-bottom:4px; }
+body.light .progress-bar { background: #ddd; }
+.progress-fill { height:100%; text-align:center; color:white; font-size:0.75rem; line-height:18px; white-space:nowrap; border-radius:8px; }
+.positive { background: #43a047; }
+.negative { background: #e53935; }
 .chart-container { position: relative; width: 100%; height: 400px; }
 #themeToggle {
   position: fixed; top:15px; right:20px;
-  background:none; border:none; font-size:20px; cursor:pointer;
-  z-index: 999;
+  background:none; border:none; font-size:20px; cursor:pointer; z-index:999;
 }
-canvas#particleBG {
+canvas#bgParticles {
   position: fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-  z-index:-1;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: -1;
+  pointer-events: none;
 }
 </style>
 </head>
 <body>
 <header>Mental Health - SPIRIT-D Dashboard</header>
-<button id="themeToggle" title="Toggle Theme">🌙</button>
-<canvas id="particleBG"></canvas>
+<button id="themeToggle" title="Toggle Theme">☀️</button>
 
-<!-- Patient & Visits -->
-<div class="section">
-  <h2>Patient & Visits</h2>
-  <div class="grid" id="patientVisitsGrid"></div>
-</div>
-
-<!-- PHQ-2 Screening Depression -->
-<div class="section">
-  <h2>PHQ-2 Screening (Depression)</h2>
-  <div class="grid" id="phqDepGrid"></div>
-</div>
-
-<!-- PHQ-2 Screening Anxiety -->
-<div class="section">
-  <h2>PHQ-2 Screening (Anxiety)</h2>
-  <div class="grid" id="phqAnxGrid"></div>
-</div>
-
-<!-- Counsellor Metrics -->
-<div class="section">
-  <h2>Counsellor Metrics</h2>
-  <div class="grid">
-    <div class="card chart-container">
-      <canvas id="counsellorChart"></canvas>
-    </div>
-  </div>
-</div>
+<!-- Sections -->
+<div class="section"><h2>Patient & Visits</h2><div class="grid" id="patientVisitsGrid"></div></div>
+<div class="section"><h2>PHQ-4 Screening</h2><div class="grid" id="phq4Grid"></div></div>
+<div class="section"><h2>PHQ-4 Actions</h2><div class="grid" id="phq4ActionGrid"></div></div>
+<div class="section"><h2>Counsellor Metrics</h2><div class="grid"><div class="card chart-container"><canvas id="counsellorChart"></canvas></div></div></div>
+<div class="section"><h2>Medicine Consumption</h2><div class="grid" id="medicineGrid"></div></div>
 
 <script>
 const SHEET_URL = 'https://opensheet.elk.sh/1vozKYQqxixEv44uVn_PS_eIHfKalH83gBJ-RpX3xDbU/Data';
 let counsellorChart;
 
+// FETCH AND RENDER
 async function fetchData() {
   try {
     const res = await fetch(SHEET_URL);
     const rows = await res.json();
     renderDashboard(rows);
-  } catch(e) {
-    console.error('Failed to fetch live sheet', e);
-  }
+  } catch(e) { console.error('Failed to fetch sheet', e); }
 }
 
-function renderDashboard(rows) {
+function renderDashboard(rows){
+  // Patient & Visits
   const pvGrid = document.getElementById('patientVisitsGrid');
   pvGrid.innerHTML='';
-  rows.slice(0,3).forEach(r=>{
-    const card = document.createElement('div'); card.className='card';
+  rows.filter(r=>r.Group==='Patient & Visits').forEach(r=>{
+    const card=document.createElement('div'); card.className='card';
     card.innerHTML=`<h3>${r.Description}</h3><div class="value">${r.Value}</div>`;
     pvGrid.appendChild(card);
   });
 
-  const depGrid = document.getElementById('phqDepGrid');
-  depGrid.innerHTML='';
-  rows.slice(3,9).forEach(r=>{
-    const card = document.createElement('div'); card.className='card';
-    if(r.Description.includes('Positive')) {
-      const pct = Math.round(r.Value/rows[3].Value*100);
-      card.innerHTML=`<h3>Positive</h3>
-      <div class="progress-label"><span>Positive: ${r.Value}</span><span>${pct}%</span></div>
-      <div class="progress-bar"><div class="progress-fill positive" style="width:${pct}%">${r.Value}</div></div>`;
-    } else if(r.Description.includes('Negative')) {
-      const pct = Math.round(r.Value/rows[3].Value*100);
-      card.innerHTML=`<h3>Negative</h3>
-      <div class="progress-label"><span>Negative: ${r.Value}</span><span>${pct}%</span></div>
-      <div class="progress-bar"><div class="progress-fill negative" style="width:${pct}%">${r.Value}</div></div>`;
-    } else {
-      card.innerHTML=`<h3>${r.Description}</h3><div class="value">${r.Value}</div>`;
-    }
-    depGrid.appendChild(card);
+  // PHQ-4 Screening
+  const phq4Grid = document.getElementById('phq4Grid');
+  phq4Grid.innerHTML='';
+  ['Depression','Anxiety'].forEach(type=>{
+    const groupName = type==='Depression' ? 'PHQ-4 Screening\nDepression' : 'PHQ-4 Screening\nAnxiety';
+    const data = rows.filter(r=>r.Group===groupName);
+    const screened = data.find(r=>r.Description.includes('Screened'))?.Value || 0;
+    const positive = data.find(r=>r.Description.includes('Positive'))?.Value || 0;
+    const negative = data.find(r=>r.Description.includes('Negative'))?.Value || 0;
+    const card=document.createElement('div'); card.className='card';
+    card.innerHTML=`
+      <h3>${type}</h3>
+      <p>Screened: ${screened}</p>
+      <p>Positive: ${positive}</p>
+      <div class="progress-bar"><div class="progress-fill positive" style="width:${screened>0?positive/screened*100:0}%">${screened>0?Math.round(positive/screened*100)+'%':'0%'}</div></div>
+      <p>Negative: ${negative}</p>
+      <div class="progress-bar"><div class="progress-fill negative" style="width:${screened>0?negative/screened*100:0}%">${screened>0?Math.round(negative/screened*100)+'%':'0%'}</div></div>
+    `;
+    phq4Grid.appendChild(card);
   });
 
-  const anxGrid = document.getElementById('phqAnxGrid');
-  anxGrid.innerHTML='';
-  rows.slice(9,15).forEach(r=>{
-    const card = document.createElement('div'); card.className='card';
-    if(r.Description.includes('Positive')) {
-      const pct = Math.round(r.Value/rows[9].Value*100);
-      card.innerHTML=`<h3>Positive</h3>
-      <div class="progress-label"><span>Positive: ${r.Value}</span><span>${pct}%</span></div>
-      <div class="progress-bar"><div class="progress-fill positive" style="width:${pct}%">${r.Value}</div></div>`;
-    } else if(r.Description.includes('Negative')) {
-      const pct = Math.round(r.Value/rows[9].Value*100);
-      card.innerHTML=`<h3>Negative</h3>
-      <div class="progress-label"><span>Negative: ${r.Value}</span><span>${pct}%</span></div>
-      <div class="progress-bar"><div class="progress-fill negative" style="width:${pct}%">${r.Value}</div></div>`;
-    } else {
-      card.innerHTML=`<h3>${r.Description}</h3><div class="value">${r.Value}</div>`;
-    }
-    anxGrid.appendChild(card);
+  // PHQ-4 Actions
+  const actionGrid=document.getElementById('phq4ActionGrid');
+  actionGrid.innerHTML='';
+  rows.filter(r=>r.Group==='PHQ-4 Action').forEach(r=>{
+    const card=document.createElement('div'); card.className='card';
+    card.innerHTML=`<h3>${r.Description}</h3><div class="value">${r.Value}</div>`;
+    actionGrid.appendChild(card);
   });
 
-  const cm = rows.slice(15);
-  const labels = cm.map(r=>r.Description);
-  const data = cm.map(r=>Number(r.Value));
+  // Counsellor Metrics
+  const cm=rows.filter(r=>r.Group==='Counsellor');
+  const labels=cm.map(r=>r.Description);
+  const data=cm.map(r=>Number(r.Value));
   if(counsellorChart) counsellorChart.destroy();
-  const ctx = document.getElementById('counsellorChart').getContext('2d');
-  counsellorChart = new Chart(ctx,{
+  const ctx=document.getElementById('counsellorChart').getContext('2d');
+  counsellorChart=new Chart(ctx,{
     type:'bar',
     data:{
       labels,
       datasets:[{
         label:'Patients',
         data,
-        backgroundColor:'rgba(0,255,255,0.7)',
+        backgroundColor:labels.map((_,i)=>`hsl(${i*45%360},80%,55%)`),
+        hoverBackgroundColor:labels.map((_,i)=>`hsl(${i*45%360},100%,70%)`),
         borderRadius:10,
-        barPercentage:0.6
       }]
     },
-    options:{responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true}}, plugins:{legend:{display:false}}}
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      scales:{y:{beginAtZero:true}},
+      plugins:{
+        legend:{display:false},
+        tooltip:{enabled:true},
+        datalabels:{
+          color:'#fff',
+          anchor:'end',
+          align:'end',
+          font:{weight:'bold', size:12},
+          formatter:val=>val
+        }
+      }
+    },
+    plugins:[ChartDataLabels]
+  });
+
+  // Medicine Consumption
+  const medGrid=document.getElementById('medicineGrid');
+  medGrid.innerHTML='';
+  rows.filter(r=>r.Group==='medicine Consumption').forEach(r=>{
+    const card=document.createElement('div'); card.className='card';
+    card.innerHTML=`<h3>${r.Description}</h3><div class="value">${r.Value}</div>`;
+    medGrid.appendChild(card);
   });
 }
 
-// Theme toggle
-document.getElementById('themeToggle').addEventListener('click', ()=>{
-  document.body.classList.toggle('dark');
-  document.getElementById('themeToggle').textContent = document.body.classList.contains('dark') ? '☀️':'🌙';
-  updateParticleColors();
+// THEME TOGGLE
+const themeToggle=document.getElementById('themeToggle');
+themeToggle.addEventListener('click',()=>{
+  document.body.classList.toggle('light');
+  themeToggle.textContent = document.body.classList.contains('light') ? '🌙' : '☀️';
+  particles.forEach(p=>p.color=randomColor());
 });
 
-// Initial fetch + refresh every 60s
-fetchData();
-setInterval(fetchData, 60000);
+// INITIAL FETCH
+fetchData(); setInterval(fetchData,60000);
 
-// Particle Background with mouse trail
-const canvas = document.getElementById('particleBG');
-const ctx = canvas.getContext('2d');
-let w = canvas.width = window.innerWidth;
-let h = canvas.height = window.innerHeight;
+// PARTICLES WITH MOUSE TRAILS + SPARKLES + FIXED BACKGROUND
+const canvas=document.getElementById('bgParticles');
+const ctxParticles=canvas.getContext('2d');
+let w=canvas.width=window.innerWidth;
+let h=canvas.height=window.innerHeight;
 window.addEventListener('resize',()=>{ w=canvas.width=window.innerWidth; h=canvas.height=window.innerHeight; });
 
-let particles = [];
-for(let i=0;i<120;i++){
-  particles.push({
-    x: Math.random()*w,
-    y: Math.random()*h,
-    r: Math.random()*3+1,
-    dx: (Math.random()-0.5)*1.5,
-    dy: (Math.random()-0.5)*1.5,
-    color: 'rgba(0,255,255,0.7)'
+let particles=[],mouseParticles=[],mouse={x:null,y:null,lastX:null,lastY:null},scrollY=0;
+const particleCount=180;
+let hueOffset=0;
+
+function randomColor(){ 
+  const alpha = document.body.classList.contains('light')?0.2:0.7;
+  return `hsla(${hueOffset},100%,50%,${alpha})`;
+}
+function createParticles(){
+  particles=[];
+  for(let i=0;i<particleCount;i++){
+    particles.push({
+      x:Math.random()*w, y:Math.random()*h,
+      r:Math.random()*3+2,
+      dx:(Math.random()-0.5)*0.5,
+      dy:(Math.random()-0.5)*0.5,
+      color:randomColor()
+    });
+  }
+}
+function createMouseParticle(x,y,vx,vy){
+  mouseParticles.push({
+    x,y,r:Math.random()*3+2,alpha:1,
+    dx: vx*0.2 + (Math.random()-0.5)*0.5,
+    dy: vy*0.2 + (Math.random()-0.5)*0.5,
+    color:'hsla(180,100%,50%,1)'
   });
 }
+function drawParticles(){
+  ctxParticles.clearRect(0,0,w,h);
+  hueOffset+=0.2;
 
-document.addEventListener('mousemove', e=>{
-  for(let i=0;i<4;i++){
-    particles.push({x:e.clientX, y:e.clientY, r: Math.random()*3+1, dx:(Math.random()-0.5)*1, dy:(Math.random()-0.5)*1, color:'rgba(0,255,255,0.9)'});
-  }
-});
-
-function draw(){
-  ctx.clearRect(0,0,w,h);
   particles.forEach(p=>{
     p.x+=p.dx; p.y+=p.dy;
     if(p.x<0||p.x>w)p.dx*=-1;
     if(p.y<0||p.y>h)p.dy*=-1;
-    ctx.beginPath();
-    ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-    ctx.fillStyle=p.color;
-    ctx.fill();
+    ctxParticles.beginPath();
+    ctxParticles.arc(p.x,p.y,p.r,0,Math.PI*2);
+    p.color=randomColor();
+    ctxParticles.fillStyle=p.color;
+    ctxParticles.shadowColor=p.color;
+    ctxParticles.shadowBlur=6;
+    ctxParticles.fill();
   });
-  // Limit particles array to avoid memory issues
-  if(particles.length>300) particles.splice(0, particles.length-300);
-  requestAnimationFrame(draw);
+
+  mouseParticles.forEach((p,i)=>{
+    p.x+=p.dx; p.y+=p.dy; p.r*=0.97; p.alpha*=0.96;
+    ctxParticles.beginPath();
+    ctxParticles.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctxParticles.fillStyle=`hsla(180,100%,50%,${p.alpha})`;
+    ctxParticles.shadowColor='hsla(180,100%,50%,0.7)';
+    ctxParticles.shadowBlur=8;
+    ctxParticles.fill();
+    if(p.alpha<0.05) mouseParticles.splice(i,1);
+  });
+
+  requestAnimationFrame(drawParticles);
 }
 
-function updateParticleColors(){
-  particles.forEach(p=>{
-    p.color = document.body.classList.contains('dark') ? 'rgba(0,255,255,0.7)' : 'rgba(0,255,255,0.4)';
-  });
-}
+createParticles();
+drawParticles();
 
-draw();
+window.addEventListener('mousemove',e=>{
+  if(mouse.lastX!=null && mouse.lastY!=null){
+    const vx = e.clientX - mouse.lastX;
+    const vy = e.clientY - mouse.lastY;
+    for(let i=0;i<5;i++) createMouseParticle(e.clientX+Math.random()*4-2, e.clientY+Math.random()*4-2, vx, vy);
+  }
+  mouse.lastX = e.clientX;
+  mouse.lastY = e.clientY;
+});
 </script>
 </body>
 </html>
