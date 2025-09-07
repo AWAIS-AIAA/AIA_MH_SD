@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mental Health - SPIRIT-D Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
 body {
   font-family: 'Segoe UI', Tahoma, sans-serif;
@@ -62,7 +63,10 @@ body.light .progress-bar { background: #ddd; }
   position: fixed; top:15px; right:20px;
   background:none; border:none; font-size:20px; cursor:pointer; z-index:999;
 }
-canvas#bgParticles { position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1; pointer-events:none; }
+canvas#bgParticles {
+  position:fixed; top:0; left:0; width:100%; height:100%;
+  z-index:-1; pointer-events:none;
+}
 </style>
 </head>
 <body>
@@ -90,7 +94,6 @@ async function fetchData() {
 }
 
 function renderDashboard(rows){
-  // Patient & Visits
   const pvGrid = document.getElementById('patientVisitsGrid');
   pvGrid.innerHTML='';
   rows.filter(r=>r.Group==='Patient & Visits').forEach(r=>{
@@ -99,7 +102,6 @@ function renderDashboard(rows){
     pvGrid.appendChild(card);
   });
 
-  // PHQ-4 Screening
   const phq4Grid = document.getElementById('phq4Grid');
   phq4Grid.innerHTML='';
   ['Depression','Anxiety'].forEach(type=>{
@@ -120,7 +122,6 @@ function renderDashboard(rows){
     phq4Grid.appendChild(card);
   });
 
-  // PHQ-4 Actions
   const actionGrid=document.getElementById('phq4ActionGrid');
   actionGrid.innerHTML='';
   rows.filter(r=>r.Group==='PHQ-4 Action').forEach(r=>{
@@ -129,7 +130,6 @@ function renderDashboard(rows){
     actionGrid.appendChild(card);
   });
 
-  // Counsellor Metrics
   const cm=rows.filter(r=>r.Group==='Counsellor');
   const labels=cm.map(r=>r.Description);
   const data=cm.map(r=>Number(r.Value));
@@ -152,12 +152,12 @@ function renderDashboard(rows){
       scales:{ y:{beginAtZero:true} },
       plugins:{
         legend:{display:false},
-        datalabels:{ color:'#fff', anchor:'end', align:'top' }
+        datalabels:{ color:'#fff', anchor:'end', align:'top', font:{weight:'bold'} }
       }
-    }
+    },
+    plugins:[ChartDataLabels]
   });
 
-  // Medicine Consumption
   const medGrid=document.getElementById('medicineGrid');
   medGrid.innerHTML='';
   rows.filter(r=>r.Group==='medicine Consumption').forEach(r=>{
@@ -177,7 +177,7 @@ themeToggle.addEventListener('click',()=>{
 // INITIAL FETCH
 fetchData(); setInterval(fetchData,60000);
 
-// PARTICLES WITH MOUSE TRAILS + SPARKLES
+// PARTICLES WITH MOUSE TRAILS + GLOWING LINES
 const canvas=document.createElement('canvas');
 canvas.id='bgParticles';
 document.body.appendChild(canvas);
@@ -186,7 +186,7 @@ let w=canvas.width=window.innerWidth;
 let h=canvas.height=window.innerHeight;
 window.addEventListener('resize',()=>{ w=canvas.width=window.innerWidth; h=canvas.height=window.innerHeight; });
 
-let particles=[],mouseParticles=[],mouse={x:null,y:null},scrollY=0;
+let particles=[],mouseParticles=[],mouse={x:null,y:null};
 const particleCount=200;
 
 function randomColor(){ return document.body.classList.contains('light')?'rgba(0,255,255,0.3)':'rgba(0,255,255,0.7)'; }
@@ -211,16 +211,17 @@ function createMouseParticle(x,y){
     alpha:1,
     dx:(Math.random()-0.5)*1.5,
     dy:(Math.random()-0.5)*1.5,
-    color:'rgba(0,255,255,1)'
+    color:'rgba(0,255,255,1)',
+    prevX:x, prevY:y
   });
 }
 
 function drawParticles(){
   ctxParticles.clearRect(0,0,w,h);
 
-  // background floating
+  // background floating fixed
   particles.forEach(p=>{
-    p.x+=p.dx; p.y+=p.dy + scrollY*0.02;
+    p.x+=p.dx; p.y+=p.dy;
     if(p.x<0||p.x>w)p.dx*=-1;
     if(p.y<0||p.y>h)p.dy*=-1;
     ctxParticles.beginPath();
@@ -231,8 +232,20 @@ function drawParticles(){
     ctxParticles.fill();
   });
 
-  // mouse sparkling
+  // mouse sparkling with glow line
   mouseParticles.forEach((p,i)=>{
+    ctxParticles.beginPath();
+    ctxParticles.moveTo(p.prevX, p.prevY);
+    ctxParticles.lineTo(p.x, p.y);
+    ctxParticles.strokeStyle=`rgba(0,255,255,${p.alpha})`;
+    ctxParticles.lineWidth=2;
+    ctxParticles.shadowColor='rgba(0,255,255,0.8)';
+    ctxParticles.shadowBlur=8;
+    ctxParticles.stroke();
+
+    p.prevX = p.x;
+    p.prevY = p.y;
+
     p.x+=p.dx; p.y+=p.dy; p.r*=0.96; p.alpha*=0.93;
     ctxParticles.beginPath();
     ctxParticles.arc(p.x,p.y,p.r,0,Math.PI*2);
@@ -253,8 +266,6 @@ window.addEventListener('mousemove',e=>{
   mouse.x=e.clientX; mouse.y=e.clientY;
   for(let i=0;i<5;i++) createMouseParticle(mouse.x+Math.random()*8-4, mouse.y+Math.random()*8-4);
 });
-
-window.addEventListener('scroll',()=>{ scrollY=window.scrollY; });
 </script>
 </body>
 </html>
